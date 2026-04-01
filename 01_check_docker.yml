@@ -1,6 +1,6 @@
 - name: "Перевірка Docker на всіх хостах"
   hosts: docker_hosts
-  become: yes
+  become: no
   gather_facts: yes
 
   tasks:

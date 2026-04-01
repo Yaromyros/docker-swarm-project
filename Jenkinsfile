@@ -14,7 +14,7 @@ pipeline {
 
         stage('Clone Repository') {
             steps {
-                echo '📥 Клонування репозиторію...'
+                echo 'Клонування репозиторію...'
                 git branch: 'main',
                     url: 'https://github.com/Yaromyros/docker-swarm-project.git'
             }
@@ -32,7 +32,7 @@ pipeline {
 
         stage('Push to Docker Registry') {
             steps {
-                echo '📤 Пуш імеджу в Docker Registry...'
+                echo 'Пуш імеджу в Docker Registry...'
                 sh """
                     docker push ${FULL_IMAGE}
                     docker push ${LATEST_IMAGE}
@@ -42,21 +42,21 @@ pipeline {
 
         stage('Ansible: Check Docker') {
             steps {
-                echo '🔍 Перевірка Docker на всіх воркерах...'
+                echo 'Перевірка Docker на всіх воркерах...'
                 sh "ansible-playbook -i hosts.ini 01_check_docker.yml -v"
             }
         }
 
         stage('Ansible: Setup Swarm') {
             steps {
-                echo '🐝 Перевірка та налаштування Docker Swarm...'
+                echo 'Перевірка та налаштування Docker Swarm...'
                 sh "ansible-playbook -i hosts.ini 02_setup_swarm.yml -v"
             }
         }
 
         stage('Ansible: Deploy to Swarm') {
             steps {
-                echo '🚀 Розгортання додатку в Docker Swarm...'
+                echo 'Розгортання додатку в Docker Swarm...'
                 sh "ansible-playbook -i hosts.ini 03_deploy_app.yml -e app_image_tag=${IMAGE_TAG} -v"
             }
         }
@@ -64,10 +64,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ ДЕПЛОЙ УСПІШНИЙ!'
+            echo 'ДЕПЛОЙ УСПІШНИЙ!'
         }
         failure {
-            echo '❌ ДЕПЛОЙ ПРОВАЛИВСЯ!'
+            echo 'ДЕПЛОЙ ПРОВАЛИВСЯ!'
         }
         always {
             sh "docker image prune -f || true"

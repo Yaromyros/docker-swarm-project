@@ -22,7 +22,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo '🔨 Збірка Docker імеджу...'
+                echo 'Збірка Docker імеджу...'
                 sh """
                     docker build -t ${FULL_IMAGE} -f Dockerfile .
                     docker tag ${FULL_IMAGE} ${LATEST_IMAGE}

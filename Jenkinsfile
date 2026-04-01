@@ -7,7 +7,7 @@ pipeline {
         IMAGE_TAG       = "${BUILD_NUMBER}"
         FULL_IMAGE      = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"
         LATEST_IMAGE    = "${DOCKER_REGISTRY}/${IMAGE_NAME}:latest"
-        GITHUB_REPO     = 'https://github.com/Yaromyros/ImageSearchApp.git'
+        GITHUB_REPO     = 'https://github.com/Yaromyros/docker-swarm-project.git'
         ANSIBLE_DIR     = 'ansible'
     }
 

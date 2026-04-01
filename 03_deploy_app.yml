@@ -1,6 +1,6 @@
 - name: "Розгортання Hello World в Docker Swarm"
   hosts: swarm_managers
-  become: yes
+  become: no
   gather_facts: yes
 
   vars:

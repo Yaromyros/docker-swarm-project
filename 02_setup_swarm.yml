@@ -1,6 +1,6 @@
 - name: "Налаштування Docker Swarm кластеру"
   hosts: swarm_managers
-  become: yes
+  become: no
   gather_facts: yes
 
   tasks:

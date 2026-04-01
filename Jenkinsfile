@@ -3,7 +3,7 @@ pipeline {
 
     environment {
         PATH = "/usr/local/bin:/opt/homebrew/bin:/Users/yaromyrm/ansible-venv/bin:${env.PATH}"
-        DOCKER_REGISTRY = '127.0.0.1:5000'
+        DOCKER_REGISTRY = '127.0.0.1:6578'
         IMAGE_NAME      = 'hello-world-app'
         IMAGE_TAG       = "${BUILD_NUMBER}"
         FULL_IMAGE      = "${DOCKER_REGISTRY}/${IMAGE_NAME}:${IMAGE_TAG}"

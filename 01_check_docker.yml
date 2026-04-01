@@ -1,0 +1,80 @@
+- name: "Перевірка Docker на всіх хостах"
+  hosts: docker_hosts
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "Перевірити чи Docker встановлений"
+      command: docker --version
+      register: docker_version
+      changed_when: false
+      failed_when: docker_version.rc != 0
+
+    - name: "Показати версію Docker"
+      debug:
+        msg: "Docker версія: {{ docker_version.stdout }}"
+
+    - name: "Перевірити чи Docker daemon запущений"
+      command: docker info
+      register: docker_info
+      changed_when: false
+      failed_when: docker_info.rc != 0
+
+    - name: "Перевірити Docker через systemd (Linux)"
+      service_facts:
+      when: ansible_os_family != "Darwin"
+
+    - name: "Статус Docker сервісу (Linux)"
+      debug:
+        msg: "Docker сервіс: {{ ansible_facts.services['docker.service'].state | default('не знайдено') }}"
+      when: ansible_os_family != "Darwin"
+
+    - name: "Перевірити Docker на macOS"
+      command: docker ps
+      register: docker_ps
+      changed_when: false
+      when: ansible_os_family == "Darwin"
+
+    - name: "Docker працює на macOS"
+      debug:
+        msg: "Docker Desktop запущений і працює на macOS"
+      when: ansible_os_family == "Darwin" and docker_ps.rc == 0
+
+    - name: "Встановити Docker якщо не знайдений (Linux)"
+      block:
+        - name: "Встановити залежності"
+          apt:
+            name:
+              - apt-transport-https
+              - ca-certificates
+              - curl
+              - gnupg
+              - lsb-release
+            state: present
+            update_cache: yes
+
+        - name: "Додати Docker GPG ключ"
+          apt_key:
+            url: https://download.docker.com/linux/ubuntu/gpg
+            state: present
+
+        - name: "Додати Docker репозиторій"
+          apt_repository:
+            repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+            state: present
+
+        - name: "Встановити Docker Engine"
+          apt:
+            name:
+              - docker-ce
+              - docker-ce-cli
+              - containerd.io
+            state: present
+            update_cache: yes
+
+        - name: "Запустити Docker"
+          service:
+            name: docker
+            state: started
+            enabled: yes
+      when: docker_version.rc != 0 and ansible_os_family == "Debian"

@@ -1,0 +1,109 @@
+- name: "Розгортання Hello World в Docker Swarm"
+  hosts: swarm_managers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    registry: "{{ docker_registry | default('127.0.0.1:5000') }}"
+    image_name: "{{ app_image_name | default('hello-world-app') }}"
+    image_tag: "{{ app_image_tag | default('latest') }}"
+    service_name: "hello-world-service"
+    replicas: 2
+    published_port: 8080
+    target_port: 5000
+
+  tasks:
+    # --- Перевірка Docker та Swarm ---
+    - name: "Перевірити що Docker запущений"
+      command: docker info
+      register: docker_check
+      changed_when: false
+      failed_when: docker_check.rc != 0
+
+    - name: "Перевірити що Swarm активний"
+      command: docker info --format '{{ '{{' }} .Swarm.LocalNodeState {{ '}}' }}'
+      register: swarm_check
+      changed_when: false
+      failed_when: swarm_check.stdout != "active"
+
+    # --- Pull імеджу з реджістрі ---
+    - name: "Пулнути імедж з Docker Registry"
+      command: "docker pull {{ registry }}/{{ image_name }}:{{ image_tag }}"
+      register: pull_result
+      changed_when: "'Downloaded' in pull_result.stdout or 'Pull complete' in pull_result.stdout"
+
+    # --- Перевірка чи сервіс вже існує ---
+    - name: "Перевірити чи сервіс існує"
+      command: "docker service inspect {{ service_name }}"
+      register: service_exists
+      changed_when: false
+      failed_when: false
+
+    # --- Оновити існуючий сервіс ---
+    - name: "Оновити існуючий сервіс"
+      command: >
+        docker service update
+        --image {{ registry }}/{{ image_name }}:{{ image_tag }}
+        --replicas {{ replicas }}
+        --update-parallelism 1
+        --update-delay 10s
+        {{ service_name }}
+      when: service_exists.rc == 0
+
+    # --- Створити новий сервіс ---
+    - name: "Створити новий сервіс в Swarm"
+      command: >
+        docker service create
+        --name {{ service_name }}
+        --replicas {{ replicas }}
+        --publish published={{ published_port }},target={{ target_port }}
+        --update-parallelism 1
+        --update-delay 10s
+        --restart-condition on-failure
+        --restart-max-attempts 3
+        {{ registry }}/{{ image_name }}:{{ image_tag }}
+      when: service_exists.rc != 0
+
+    # --- Перевірка деплою ---
+    - name: "Зачекати поки сервіс стартує"
+      pause:
+        seconds: 15
+
+    - name: "Перевірити статус сервісу"
+      command: "docker service ps {{ service_name }}"
+      register: service_status
+      changed_when: false
+
+    - name: "Статус сервісу"
+      debug:
+        msg: "{{ service_status.stdout_lines }}"
+
+    - name: "Перевірити список сервісів"
+      command: docker service ls
+      register: service_list
+      changed_when: false
+
+    - name: "Список сервісів"
+      debug:
+        msg: "{{ service_list.stdout_lines }}"
+
+    - name: "Тест HTTP доступу до додатку"
+      uri:
+        url: "http://localhost:{{ published_port }}"
+        method: GET
+        return_content: yes
+        status_code: 200
+      register: http_test
+      retries: 5
+      delay: 5
+      until: http_test.status == 200
+      ignore_errors: yes
+
+    - name: "Результат тесту"
+      debug:
+        msg: >
+          {% if http_test.status is defined and http_test.status == 200 %}
+          ✅ Додаток працює! Відповідь: {{ http_test.content[:100] }}
+          {% else %}
+          ⚠️ Додаток ще стартує. Перевірте вручну: curl http://localhost:{{ published_port }}
+          {% endif %}

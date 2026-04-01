@@ -1,11 +1,11 @@
-- name: "Налаштування Docker Swarm кластеру"
+- name: "Перевірка Docker Swarm"
   hosts: swarm_managers
   become: no
-  gather_facts: yes
+  gather_facts: no
 
   tasks:
     - name: "Перевірити статус Swarm"
-      command: docker info --format '{{ '{{' }} .Swarm.LocalNodeState {{ '}}' }}'
+      command: docker info --format '{%raw%}{{.Swarm.LocalNodeState}}{%endraw%}'
       register: swarm_status
       changed_when: false
 
@@ -14,59 +14,11 @@
         msg: "Swarm статус: {{ swarm_status.stdout }}"
 
     - name: "Ініціалізувати Swarm якщо не активний"
-      command: docker swarm init --advertise-addr {{ ansible_host }}
-      register: swarm_init
+      command: docker swarm init --advertise-addr 127.0.0.1
       when: swarm_status.stdout != "active"
+      ignore_errors: yes
 
-    - name: "Отримати токен для воркерів"
-      command: docker swarm join-token worker -q
-      register: worker_token
-      changed_when: false
-      when: swarm_status.stdout == "active" or swarm_init is changed
-
-    - name: "Зберегти токен як факт"
-      set_fact:
-        swarm_worker_token: "{{ worker_token.stdout }}"
-        swarm_manager_ip: "{{ ansible_host }}"
-      when: worker_token is not skipped
-
-    - name: "Показати команду для приєднання воркерів"
-      debug:
-        msg: "docker swarm join --token {{ swarm_worker_token }} {{ swarm_manager_ip }}:2377"
-      when: swarm_worker_token is defined
-
-
-- name: "Приєднати воркери до Swarm"
-  hosts: swarm_workers
-  become: yes
-  gather_facts: yes
-
-  tasks:
-    - name: "Перевірити статус Swarm на воркері"
-      command: docker info --format '{{ '{{' }} .Swarm.LocalNodeState {{ '}}' }}'
-      register: worker_swarm_status
-      changed_when: false
-
-    - name: "Приєднати воркер до Swarm"
-      command: >
-        docker swarm join
-        --token {{ hostvars[groups['swarm_managers'][0]]['swarm_worker_token'] }}
-        {{ hostvars[groups['swarm_managers'][0]]['swarm_manager_ip'] }}:2377
-      when: worker_swarm_status.stdout != "active"
-
-    - name: "Воркер вже в Swarm"
-      debug:
-        msg: "Воркер {{ inventory_hostname }} вже є частиною Swarm кластеру"
-      when: worker_swarm_status.stdout == "active"
-
-
-- name: "Перевірка кластеру"
-  hosts: swarm_managers
-  become: yes
-  gather_facts: no
-
-  tasks:
-    - name: "Показати всі ноди кластеру"
+    - name: "Показати ноди кластеру"
       command: docker node ls
       register: node_list
       changed_when: false
